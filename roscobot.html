@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RoscoBot - Paco Rosco</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red: #ff0000;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#ffffff; font-family:var(--font-mono);
+    }
+    #cursor {
+      position:fixed; width:12px; height:12px; background:var(--red); border-radius:50%;
+      pointer-events:none; z-index:99999; transform:translate(-50%,-50%);
+      transition: width 0.2s, height 0.2s;
+    }
+    #cursor.big { width:50px; height:50px; }
+    #background {
+      position:fixed; inset:0;
+      background:url('https://i.postimg.cc/DmVFYgXN/IMG-4873.png') center center no-repeat;
+      background-size:28%; z-index:1; pointer-events:none; opacity:0.75;
+    }
+    #menu-btn {
+      position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+      background:#1f1f1f; color:white;
+      font-family:var(--font-display); font-size:1.8rem; letter-spacing:6px;
+      padding:22px 80px; border:none; border-radius:50px;
+      box-shadow:0 12px 45px rgba(0,0,0,0.6);
+      cursor:none; z-index:300; transition:all 0.3s;
+    }
+    #menu-btn:hover {
+      background:var(--red); transform:translateX(-50%) scale(1.07);
+      box-shadow:0 12px 45px rgba(255,0,0,0.5);
+    }
+    #menu-btn.hamburguesa {
+      bottom:auto; top:24px; left:auto; right:24px;
+      transform:none; width:48px; height:48px; padding:0;
+      border-radius:10px; font-size:0; letter-spacing:0;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    }
+    #menu-btn.hamburguesa:hover {
+      background:var(--red); transform:none; box-shadow:0 4px 20px rgba(255,0,0,0.4);
+    }
+    #menu-btn.hamburguesa .hline {
+      display:block; width:22px; height:2px; background:white; border-radius:2px;
+      transition:all 0.3s;
+    }
+    #menu-btn.hamburguesa.abierto { background:var(--red); }
+    #menu-btn.hamburguesa.abierto .hline:nth-child(1) { transform:translateY(7px) rotate(45deg); }
+    #menu-btn.hamburguesa.abierto .hline:nth-child(2) { opacity:0; }
+    #menu-btn.hamburguesa.abierto .hline:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
+    #menu-btn .btn-label { font-family:var(--font-display); font-size:1.8rem; letter-spacing:6px; }
+    #menu-btn.hamburguesa .btn-label { display:none; }
+
+    .chat-container {
+      position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+      width:92%; max-width:520px; height:78vh;
+      background:rgba(10,10,10,0.96); backdrop-filter:blur(20px);
+      border-radius:20px; border:1px solid rgba(255,255,255,0.12);
+      padding:22px; display:none; flex-direction:column; z-index:200;
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);
+    }
+    .chat-container.esquina {
+      top:84px; right:24px; left:auto; bottom:auto;
+      transform:none; max-width:380px; height:72vh; max-height:560px;
+      transform-origin:top right;
+    }
+    .chat-bot-name {
+      font-family:var(--font-display); font-size:1.35rem; color:var(--red);
+      letter-spacing:4px; margin-bottom:16px; padding-bottom:12px;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    #close-btn {
+      background:none; border:none; color:rgba(255,255,255,0.4);
+      font-size:1.2rem; cursor:none; line-height:1; transition:color 0.2s;
+    }
+    #close-btn:hover { color:var(--red); }
+    .chat-history {
+      flex:1; overflow-y:auto; display:flex; flex-direction:column;
+      gap:12px; margin-bottom:15px; padding-right:10px;
+    }
+    .message {
+      padding:13px 18px; border-radius:14px; font-size:0.92rem;
+      line-height:1.55; max-width:88%;
+    }
+    .message.ai { background:rgba(255,255,255,0.09); color:#ddd; align-self:flex-start; }
+    .message.user { background:var(--red); color:white; align-self:flex-end; }
+    .typing { padding:13px 18px; background:rgba(255,255,255,0.09);
+      border-radius:14px; align-self:flex-start; max-width:88%; color:#888; font-size:0.85rem; }
+    .typing::after { content:'▋'; animation:blink 0.7s infinite; }
+    @keyframes blink { 50% { opacity:0; } }
+    .input-area {
+      background:rgba(255,255,255,0.08); border-radius:50px;
+      padding:8px 12px 8px 20px; display:flex; align-items:center;
+      border:1px solid rgba(255,255,255,0.1);
+    }
+    #user-input {
+      background:transparent; border:none; color:white; flex:1;
+      padding:10px 0; outline:none; font-size:0.92rem; font-family:var(--font-mono);
+    }
+    #send-btn {
+      background:var(--red); border:none; border-radius:50%; width:42px; height:42px;
+      color:white; font-size:18px; display:flex; align-items:center;
+      justify-content:center; cursor:none;
+    }
+    a { color:#ff6666; text-decoration:underline; }
+    .cmd-link {
+      display:inline-block; background:rgba(255,0,0,0.15); color:#ff9090;
+      border:1px solid rgba(255,0,0,0.35); border-radius:6px;
+      padding:2px 10px; font-size:0.82rem; cursor:none;
+      font-family:var(--font-mono); letter-spacing:0.03em; transition:background 0.2s;
+    }
+    .cmd-link:hover { background:rgba(255,0,0,0.3); }
+  </style>
+</head>
+<body>
+<div id="background"></div>
+<div id="cursor"></div>
+<button id="menu-btn">
+  <span class="btn-label">MENU</span>
+  <span class="hline"></span>
+  <span class="hline"></span>
+  <span class="hline"></span>
+</button>
+
+<div class="chat-container" id="chatContainer">
+  <div class="chat-bot-name">ROSCOBOT_ <button id="close-btn">✕</button></div>
+  <div class="chat-history" id="chatHistory"></div>
+  <form class="input-area" id="chatForm">
+    <input type="text" id="user-input" placeholder="Escribe aquí... (sin miedo)" autocomplete="off">
+    <button type="submit" id="send-btn">➔</button>
+  </form>
+</div>
+
+<script>
+const chat = {
+  history: document.getElementById('chatHistory'),
+  input: document.getElementById('user-input'),
+  form: document.getElementById('chatForm'),
+  initialized: false,
+
+  init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    this.form.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = this.input.value.trim();
+      if (!text) return;
+      this.addMessage('user', text);
+      this.input.value = '';
+      this.responder(text);
+    });
+  },
+
+  addMessage(role, content) {
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    if (role === 'user') div.textContent = content;
+    else div.innerHTML = content;
+    this.history.appendChild(div);
+    this.scroll();
+  },
+
+  scroll() { this.history.scrollTop = this.history.scrollHeight; },
+
+  typeWriter(el, html, speed = 17) {
+    return new Promise(resolve => {
+      el.innerHTML = '';
+      let i = 0;
+      const tick = () => {
+        if (i < html.length) {
+          el.innerHTML = html.substring(0, i + 1);
+          i++; this.scroll(); setTimeout(tick, speed);
+        } else { el.innerHTML = html; resolve(); }
+      };
+      tick();
+    });
+  },
+
+  async responder(text) {
+    const t = text.toLowerCase().trim();
+    const typing = document.createElement('div');
+    typing.className = 'typing';
+    this.history.appendChild(typing);
+    this.scroll();
+    await new Promise(r => setTimeout(r, 480));
+    typing.remove();
+    const aiEl = document.createElement('div');
+    aiEl.className = 'message ai';
+    this.history.appendChild(aiEl);
+    this.scroll();
+    let html = '';
+
+    if (t === 'menu' || t.includes('menú')) {
+      html = `Aquí tienes todo lo que puedes explorar 👇<br><br>
+<strong>Galerías de trabajos:</strong><br>
+<span class="cmd-link" onclick="chat.fakeInput('diseño')">🎯 Diseño de Productos Gráficos</span><br><br>
+<span class="cmd-link" onclick="chat.fakeInput('ilustración')">✏️ Ilustración</span><br><br>
+<span class="cmd-link" onclick="chat.fakeInput('multimedia')">🎬 Desarrollo de Productos Multimedia</span><br><br>
+<strong>Portfolios de alumnos:</strong><br>
+<span class="cmd-link" onclick="chat.fakeInput('portfolios')">👤 Ver portfolios</span>`;
+    }
+    else if (t.includes('portfolios') || t.includes('portafolio')) {
+      html = `Los portfolios están en construcción. 👤<br><br>Próximamente aquí podrás acceder a los trabajos completos de cada alumno.<br><br>¿Te interesa algún certificado en concreto? → <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span>`;
+    }
+    else if ((t.includes('sigue') || t.includes('todavía') || t.includes('aún') || t.includes('aun')) && (t.includes('diseñ') || t.includes('trabaj') || t.includes('crea'))) {
+      html = `Sí, sigue diseñando. 🎨<br><br>Paco compagina la docencia con su trabajo como diseñador en activo.<br>Si quieres ver su obra, visita <a href="https://www.pacorosco.com" target="_blank">pacorosco.com</a>`;
+    }
+    else if (t.includes('paco') || t.includes('rosco') || t.includes('profesor')) {
+      html = `Paco Rosco lleva más de 14 años formando diseñadores de verdad en Grupo Colón IECM. 🎓<br><br>No viene a enseñarte a hacer clic en botones. Viene a enseñarte a pensar, crear y trabajar con criterio.<br><br>Imparte certificados de profesionalidad en diseño, ilustración y multimedia, con IA integrada en todos ellos.<br>Su filosofía: la IA no te quita el trabajo, te hace más competente.<br><br>Si quieres saber más, visita <a href="https://www.pacorosco.com" target="_blank">pacorosco.com</a> — merece la pena.`;
+    }
+    else if (t.includes('ia se aprende') || t.includes('qué ia') || (t.includes('ia') && (t.includes('usa') || t.includes('aprende')))) {
+      html = `¡Buena pregunta! 🤖<br><br>Se trabaja con Midjourney para crear imágenes que sorprenden, con ChatGPT para potenciar el proceso creativo, y con otras herramientas de voz y vídeo según el proyecto.<br><br>Aquí la IA no es para saltarse el trabajo. Es para hacer más en menos tiempo y con mejores resultados.<br><br>¿Quieres explorar los certificados? → <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span>`;
+    }
+    else if (t.includes('diseño') && !t.includes('multimedia')) {
+      html = `<strong>Diseño de Productos Gráficos</strong> 🎯<br><br>Este certificado va mucho más allá de hacer logotipos bonitos.<br><br>Aprenderás a desarrollar piezas gráficas completas: identidades visuales, carteles, packaging, publicaciones, materiales corporativos… todo con criterio profesional.<br><br>Se trabaja con Adobe InDesign, Illustrator y Photoshop, con IA integrada como herramienta de producción real.`;
+    }
+    else if (t.includes('multimedia')) {
+      html = `<strong>Desarrollo de Productos Multimedia</strong> 🎬<br><br>Vídeo, motion graphics, animación, sonido y formatos interactivos. Todo el proceso, desde la idea hasta la entrega final.<br><br>Se trabaja con After Effects, Premiere y herramientas de audio, con IA integrada para acelerar y explorar.`;
+    }
+    else if (t.includes('ilustración') || t.includes('ilustracion')) {
+      html = `<strong>Ilustración</strong> ✏️<br><br>No se trata de aprender a dibujar. Se trata de desarrollar un lenguaje visual propio y convertirlo en trabajo real.<br><br>Técnica, estilo, narrativa visual y construcción de portfolio. La IA siempre al servicio de tu voz creativa.`;
+    }
+    else if (t.includes('no sé') || t.includes('cuál elegir') || t.includes('recomiendas') || t.includes('diferencia')) {
+      html = `Guía rápida:<br><br>🎯 Marcas e identidad → <span class="cmd-link" onclick="chat.fakeInput('diseño')">Diseño de Productos Gráficos</span><br><br>🎬 Vídeo, movimiento y sonido → <span class="cmd-link" onclick="chat.fakeInput('multimedia')">Desarrollo Multimedia</span><br><br>✏️ Estilo propio e ilustración → <span class="cmd-link" onclick="chat.fakeInput('ilustración')">Ilustración</span><br><br>Cuéntame qué te atrae más y te oriento sin rodeos.`;
+    }
+    else if (t.includes('apuntarme') || t.includes('inscribir') || t.includes('matricula') || t.includes('contacto')) {
+      html = `¡Genial que quieras dar el paso! 🙌<br><br>📞 <strong>91 456 08 17</strong><br>📧 <strong>formacion@coloniecm.com</strong><br><br>Sin rodeos, sin esperas.`;
+    }
+    else if (t.includes('nivel') || t.includes('principiante') || t.includes('desde cero')) {
+      html = `No hace falta experiencia previa. Lo que sí hace falta es ganas de aprender y compromiso. 🌱<br><br>Paco trabaja con perfiles muy distintos. Lo importante es la actitud.`;
+    }
+    else if (t.includes('salidas') || t.includes('empleo') || t.includes('futuro') || t.includes('trabajo')) {
+      html = `Los certificados en diseño, ilustración y multimedia tienen salida real: agencias, estudios, freelance, equipos internos… 💼<br><br>Con IA bien integrada en tu flujo de trabajo, marcas la diferencia. El mercado busca gente que sepa hacer <em>y</em> que sepa usar las herramientas de hoy.`;
+    }
+    else {
+      html = `Interesante. 🤔<br><br>Escribe <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span> para explorar los certificados, o pregúntame lo que necesites.`;
+    }
+
+    await this.typeWriter(aiEl, html);
+  },
+
+  fakeInput(text) {
+    this.addMessage('user', text);
+    this.responder(text);
+  }
+};
+
+let chatAbierto = false;
+let primeraVez = true;
+
+function abrirChat() {
+  const btn = document.getElementById('menu-btn');
+  const container = document.getElementById('chatContainer');
+  container.style.display = 'flex';
+  btn.classList.add('abierto');
+  chatAbierto = true;
+  chat.init();
+  if (chat.history.children.length === 0) {
+    setTimeout(() => {
+      const welcomeEl = document.createElement('div');
+      welcomeEl.className = 'message ai';
+      chat.history.appendChild(welcomeEl);
+      chat.scroll();
+      const saludos = [
+        `¡Hola! Soy RoscoBot. 🤖<br><br>Estoy aquí para contarte todo sobre los certificados de profesionalidad que imparte Paco Rosco en Grupo Colón IECM: diseño, ilustración y multimedia.<br><br>Sin rollos. Sin palabrería.<br><br>Escribe <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span> para ver las galerías y portfolios, o pregúntame lo que necesites.`,
+        `Buenas. Soy RoscoBot. 👋<br><br>Certificados de profesionalidad en diseño, ilustración y multimedia. Todo en Grupo Colón IECM con Paco Rosco.<br><br>Nada de relleno. Solo lo que necesitas saber.<br><br>Escribe <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span> para empezar.`,
+        `¡Qué alegría verte por aquí! Soy RoscoBot. 🎨<br><br>El asistente de Paco Rosco en Grupo Colón IECM. Diseño, ilustración y multimedia — todo aquí.<br><br>¿Empezamos? → <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span>`,
+        `Hola. RoscoBot al habla. 🔴<br><br>Si estás aquí es porque algo de diseño, ilustración o multimedia te llama la atención.<br><br>Te cuento cómo funciona, qué se aprende y qué hacen los alumnos. → <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span>`,
+        `¡Bienvenido! Soy RoscoBot. 🚀<br><br>Certificados de profesionalidad en diseño gráfico, ilustración y multimedia en Grupo Colón IECM.<br><br>Aquí no se enseña a usar programas. Se enseña a trabajar de verdad. → <span class="cmd-link" onclick="chat.fakeInput('menu')">menu</span>`
+      ];
+      chat.typeWriter(welcomeEl, saludos[Math.floor(Math.random() * saludos.length)], 16);
+    }, 300);
+  }
+}
+
+function cerrarChat() {
+  const btn = document.getElementById('menu-btn');
+  const container = document.getElementById('chatContainer');
+  container.style.display = 'none';
+  btn.classList.remove('abierto');
+  chatAbierto = false;
+  if (primeraVez) {
+    primeraVez = false;
+    btn.classList.add('hamburguesa');
+    container.classList.add('esquina');
+  }
+}
+
+document.getElementById('menu-btn').addEventListener('click', () => {
+  chatAbierto ? cerrarChat() : abrirChat();
+});
+document.getElementById('close-btn').addEventListener('click', () => cerrarChat());
+
+const cur = document.getElementById('cursor');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX + 'px';
+  cur.style.top = e.clientY + 'px';
+});
+document.addEventListener('mouseover', e => {
+  if (['BUTTON','A'].includes(e.target.tagName) || e.target.classList.contains('cmd-link')) {
+    cur.classList.add('big');
+  } else { cur.classList.remove('big'); }
+});
+</script>
+</body>
+</html>
